@@ -1,0 +1,7 @@
+# Installer-/Debug-Logs
+*.log
+/tmp/
+
+# System
+.DS_Store
+Thumbs.db
