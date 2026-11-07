@@ -182,6 +182,9 @@ usage() {
 Usage:
   bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/OpenMausBot-Proxmox/main/install/openmausbot.sh)" [OPTIONS]
 
+  Optionen kommen direkt hinter das schließende Anführungszeichen (z. B. ..." --pair)
+  – der Installer erkennt sie auch dort. Alternativ: wget -qO- <URL> | bash -s -- [OPTIONS]
+
 Options:
   --id NUM            Container-ID (Default: automatisch nächste freie ab 200)
   --hostname TEXT     Hostname (Default: openmausbot)
@@ -378,6 +381,26 @@ do_status() {
 }
 
 # ── Pairing-Code erzeugen (Browser-Login – Pflicht, auch lokal!) ───────────
+# Erzeugt Code + Link. Fehler sind NICHT fatal (Warnung statt Abbruch) –
+# z. B. am Ende von Install/Update, wo die Installation schon steht.
+print_pairing_code() {
+    local ct_id="$1"
+    local ct_ip public_url=""
+    ct_ip=$(get_ct_ip "$ct_id")
+    [[ -n "$ct_ip" ]] && public_url="http://${ct_ip}:${WEB_PORT}"
+
+    echo ""
+    if pct exec "$ct_id" -- env HOME="$OMB_HOME" OMB_DATA_DIR="$OMB_DATA_DIR" OMB_PORT="$OMB_PORT" \
+        OMB_PUBLIC_URL="$public_url" \
+        runuser -u openmausbot -- openmausbot pair --ttl 24h; then
+        echo ""
+        info "Code oben im Browser eingeben (Pairing-Seite) oder den Link direkt öffnen."
+        return 0
+    fi
+    warn "Pairing-Code konnte nicht erzeugt werden – später erzeugen: dieses Script mit --pair"
+    return 0
+}
+
 do_pair() {
     local ct_id="$1"
     CT_ID="$ct_id"   # für die Fehlerkette (on_error) setzen
@@ -387,18 +410,8 @@ do_pair() {
         die "Service 'openmausbot' läuft nicht.\n  Erst starten: pct start $ct_id\n  Logs: pct exec $ct_id -- journalctl -u openmausbot -e"
     fi
 
-    local ct_ip public_url=""
-    ct_ip=$(get_ct_ip "$ct_id")
-    [[ -n "$ct_ip" ]] && public_url="http://${ct_ip}:${WEB_PORT}"
-
     info "Erzeuge Pairing-Code (einmalig nutzbar, 24 h gültig)..."
-    echo ""
-    # Fehlgeschlagener pct exec → ERR-Trap gibt die komplette Fehlerkette aus
-    pct exec "$ct_id" -- env HOME="$OMB_HOME" OMB_DATA_DIR="$OMB_DATA_DIR" OMB_PORT="$OMB_PORT" \
-        OMB_PUBLIC_URL="$public_url" \
-        runuser -u openmausbot -- openmausbot pair --ttl 24h
-    echo ""
-    info "Code oben im Browser eingeben (Pairing-Seite) oder den Link direkt öffnen."
+    print_pairing_code "$ct_id"
     info "Neuen Code erzeugen: dieses Script mit --pair"
     exit 0
 }
@@ -684,15 +697,18 @@ print_summary() {
     echo ""
     echo -e "  ${GREEN}${BOLD}════════════════════════════════════════════════════════════${NC}"
     echo -e "  ${GREEN}  🌐 Web-UI:    http://${ct_ip}:${WEB_PORT}${NC}"
-    echo -e "  ${GREEN}  🔑 Pairing:   dieses Script mit --pair  → Code + Link ausgeben${NC}"
+    echo -e "  ${GREEN}  🔑 Pairing:   Code oben ⬆ (einmalig, 24 h gültig) – neu: --pair${NC}"
     echo -e "  ${GREEN}  🐚 Terminal:  pct enter ${CT_ID}${NC}"
-    echo -e "  ${GREEN}  🔑 Root-PW:   ${CT_PASSWORD}${NC}"
+    if [[ -n "$CT_PASSWORD" ]]; then
+        echo -e "  ${GREEN}  🔑 Root-PW:   ${CT_PASSWORD}${NC}"
+    fi
     echo -e "  ${GREEN}  📦 Version:   openmausbot ${OMB_VERSION}${NC}"
     echo -e "  ${GREEN}${BOLD}════════════════════════════════════════════════════════════${NC}"
     echo ""
     echo -e "  ${CYAN}So geht's weiter:${NC}"
-    echo "  1. Pairing-Code erzeugen:   dieses Script mit --pair"
+    echo "  1. Pairing-Code oben ⬆ auf der Pairing-Seite eingeben"
     echo "     (Browser MÜSSEN sich koppeln – unauthentifiziert erscheint nur die Pair-Seite)"
+    echo "     Neuen Code erzeugen: dieses Script mit --pair"
     echo "  2. http://${ct_ip}:${WEB_PORT} öffnen → Code eingeben"
     echo "  3. KI-Zugang einrichten (eine Quelle reicht):"
     echo "     • Web-UI → Settings → Engines: Claude/Codex-Login (Headless-Flows, kein Browser nötig)"
@@ -724,6 +740,8 @@ do_update() {
     build_engine_flags
     run_inner_setup "$ct_id"
     verify_installation "$ct_id"
+    header "🔑  Pairing-Code (für den ersten Browser-Login)"
+    print_pairing_code "$ct_id"
     print_summary
     exit 0
 }
@@ -752,7 +770,16 @@ create_container() {
 
 # ── Hauptprogramm ──────────────────────────────────────────────────────────
 main() {
-    parse_args "$@"
+    # bash -c "$(wget ...)" --pair: bash -c belegt das ERSTE Argument nach dem
+    # Script-String mit $0 – "$@" bleibt leer. Sieht $0 wie eine Option aus,
+    # wird es vor die Argumente gestellt (auch für 'bash -c "..." --id 203 ...').
+    local -a script_args=("$@")
+    local zero_as_option=false
+    if [[ "${0:-}" == -* ]]; then
+        script_args=("$0" "$@")
+        zero_as_option=true
+    fi
+    parse_args "${script_args[@]}"
 
     echo ""
     echo -e "  ${BOLD}🐭  Proxmox OpenMausBot – Installer${NC}"
@@ -760,6 +787,9 @@ main() {
     echo -e "  ${CYAN}App: https://github.com/milind-soni/OpenMausBot (v${OMB_VERSION}, Apache-2.0)${NC}"
     echo -e "  ${CYAN}Log: $LOG_FILE${NC}"
     echo ""
+    if $zero_as_option; then
+        info "Optionen aus bash -c erkannt (\$0='${0}')"
+    fi
 
     check_prerequisites
 
@@ -834,6 +864,8 @@ main() {
 
     run_inner_setup "$CT_ID"
     verify_installation "$CT_ID"
+    header "🔑  Pairing-Code (für den ersten Browser-Login)"
+    print_pairing_code "$CT_ID"
     print_summary
 }
 

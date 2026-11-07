@@ -28,6 +28,8 @@ Das Script:
 3. richtet den **systemd-Service** ein (`Restart=always`, `After=network-online.target`) und den **Caddy-Reverse-Proxy** (`0.0.0.0:8080 → 127.0.0.1:8799`, SSE-fähig via `flush_interval -1`),
 4. **verifiziert** beide Services + Web-UI (HTTP-Checks auf `/api/health` und Proxy) und gibt die finale URL aus.
 
+Am Ende der Installation wird **automatisch ein Pairing-Code** (einmalig, 24 h gültig) mit ausgegeben – du brauchst keine separate `--pair`-Runde mehr, wenn du sofort startest.
+
 Erwartete Ausgabe (Ende):
 
 ```
@@ -36,12 +38,17 @@ Erwartete Ausgabe (Ende):
 ✔ Server-API erreichbar (127.0.0.1:8799/api/health, nur loopback – wie upstream-Design)
 ✔ Web-UI über Reverse-Proxy erreichbar (Port 8080)
 
+━━━ 🔑  Pairing-Code (für den ersten Browser-Login) ━━━
+  AB12CD34EF56
+  http://192.168.x.x:8080/pair#code=AB12CD34EF56
+
 ━━━ 🐭  OpenMausBot ist bereit! ━━━
   🌐 Web-UI:    http://192.168.x.x:8080
-  🔑 Pairing:   dieses Script mit --pair  → Code + Link ausgeben
-  🔑 Root-PW:   <generiertes Passwort>
+  🔑 Pairing:   Code oben ⬆ (einmalig, 24 h gültig) – neu: --pair
   📦 Version:   openmausbot 0.1.144
 ```
+
+> **Tipp:** Optionen hängst du direkt hinter das schließende Anführungszeichen – der Installer erkennt sie auch dort: `bash -c "$(wget -qLO - …/install/openmausbot.sh)" --pair`. Alternativ: `wget -qO- …/install/openmausbot.sh | bash -s -- --pair`.
 
 ---
 
@@ -52,11 +59,11 @@ Erwartete Ausgabe (Ende):
 Der OpenMausBot-Server vertraut Browsern **bewusst nie direkt** – unauthentifizierte Browser sehen nur die Pairing-Seite. So koppelst du deinen Browser:
 
 ```bash
-# auf dem Proxmox-Host:
-.../install/openmausbot.sh --pair
+# auf dem Proxmox-Host (Optionen direkt hinter das schließende Anführungszeichen):
+bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/OpenMausBot-Proxmox/main/install/openmausbot.sh)" --pair
 ```
 
-→ gibt einen **12-stelligen Einmal-Code** (24 h gültig) + einen fertigen Link aus. Im Browser `http://<CT-IP>:8080` öffnen, Code eingeben – fertig.
+→ gibt einen **12-stelligen Einmal-Code** (24 h gültig) + einen fertigen Link aus. Im Browser `http://<CT-IP>:8080` öffnen, Code eingeben – fertig. (Nach einer frischen Installation erscheint der Code bereits automatisch am Ende der Installationsausgabe.)
 
 ### 2. KI-Zugang einrichten (eine Quelle reicht)
 
