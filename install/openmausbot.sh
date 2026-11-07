@@ -67,6 +67,9 @@ ASSUME_YES=false
 DEBUG=false
 TMP_DIR=""
 LOG_FILE="/tmp/openmausbot-installer-$(date +%Y%m%d-%H%M%S).log"
+# Der fertige Einzeiler für Hinweise/Fehlerausgaben – exakt kopierbar (Optionen
+# hinter dem schließenden Anführungszeichen; der Installer erkennt sie via $0-Fallback)
+ONE_LINER='bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/OpenMausBot-Proxmox/main/install/openmausbot.sh)"'
 
 # ── Farben & Logging ───────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -397,7 +400,18 @@ print_pairing_code() {
         info "Code oben im Browser eingeben (Pairing-Seite) oder den Link direkt öffnen."
         return 0
     fi
-    warn "Pairing-Code konnte nicht erzeugt werden – später erzeugen: dieses Script mit --pair"
+    # Pairing fehlgeschlagen → UNBEDINGT den exakten Befehl ausgeben (Anforderung:
+    # wenn der Code nicht direkt angezeigt werden kann, muss der Befehl her)
+    warn "Pairing-Code konnte nicht erzeugt werden (Fehlerdetails oben)."
+    info "Exakter Befehl für einen neuen Pairing-Code (auf dem Proxmox-Host):"
+    echo ""
+    echo "    ${ONE_LINER} --pair"
+    echo ""
+    info "Oder direkt im Container (zeigt rohe Fehlerdetails):"
+    echo ""
+    echo "    pct exec ${ct_id} -- env HOME=${OMB_HOME} OMB_DATA_DIR=${OMB_DATA_DIR} \\"
+    echo "        runuser -u openmausbot -- openmausbot pair --ttl 24h"
+    echo ""
     return 0
 }
 
@@ -412,7 +426,8 @@ do_pair() {
 
     info "Erzeuge Pairing-Code (einmalig nutzbar, 24 h gültig)..."
     print_pairing_code "$ct_id"
-    info "Neuen Code erzeugen: dieses Script mit --pair"
+    info "Neuen Code erzeugen (exakter Befehl):"
+    echo "    ${ONE_LINER} --pair"
     exit 0
 }
 
@@ -708,7 +723,8 @@ print_summary() {
     echo -e "  ${CYAN}So geht's weiter:${NC}"
     echo "  1. Pairing-Code oben ⬆ auf der Pairing-Seite eingeben"
     echo "     (Browser MÜSSEN sich koppeln – unauthentifiziert erscheint nur die Pair-Seite)"
-    echo "     Neuen Code erzeugen: dieses Script mit --pair"
+    echo "     Neuer Code, falls der obige verfallen/eingelöst ist (exakter Befehl):"
+    echo "       ${ONE_LINER} --pair"
     echo "  2. http://${ct_ip}:${WEB_PORT} öffnen → Code eingeben"
     echo "  3. KI-Zugang einrichten (eine Quelle reicht):"
     echo "     • Web-UI → Settings → Engines: Claude/Codex-Login (Headless-Flows, kein Browser nötig)"
@@ -717,13 +733,13 @@ print_summary() {
     echo "         pct exec ${CT_ID} -- env HOME=${OMB_HOME} OMB_DATA_DIR=${OMB_DATA_DIR} \\"
     echo "           runuser -u openmausbot -- openmausbot engine set claude --key-env ANTHROPIC_API_KEY --install"
     echo ""
-    echo -e "  ${CYAN}Nützliche Befehle:${NC}"
-    echo "  Status:    dieses Script mit --status"
-    echo "  Pairing:   dieses Script mit --pair"
+    echo -e "  ${CYAN}Nützliche Befehle (exakt kopierbar):${NC}"
+    echo "  Status:    ${ONE_LINER} --status"
+    echo "  Pairing:   ${ONE_LINER} --pair"
+    echo "  Update:    ${ONE_LINER} --update"
     echo "  Logs:      pct exec ${CT_ID} -- journalctl -u openmausbot -f"
     echo "  Proxy-Log: pct exec ${CT_ID} -- journalctl -u caddy -f"
     echo "  Diagnose:  pct exec ${CT_ID} -- env HOME=${OMB_HOME} runuser -u openmausbot -- openmausbot doctor"
-    echo "  Update:    dieses Script mit --update  (Version pinnen: --version X.Y.Z)"
     echo ""
 }
 
