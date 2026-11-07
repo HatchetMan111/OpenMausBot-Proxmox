@@ -503,7 +503,7 @@ chown root:openmausbot /etc/default/openmausbot
 # Caddy: Reverse Proxy 0.0.0.0:${OMB_WEB_PORT} → 127.0.0.1:${OMB_PORT} (+ /hooks/* → Webhooks)
 cat > /etc/caddy/Caddyfile <<CADDYEOF
 {
-\admin off
+	admin off
 }
 
 :${OMB_WEB_PORT} {
