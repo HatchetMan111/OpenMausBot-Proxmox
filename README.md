@@ -19,7 +19,7 @@ OpenMausBot ist eine self-hosted Chat-Oberfläche, in der jeder „Bot" in der S
 ## 🚀 Installation (Einzeiler auf dem Proxmox-Host als root)
 
 ```bash
-bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/proxmox-openmausbot/main/install/openmausbot.sh)"
+bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/OpenMausBot-Proxmox/main/install/openmausbot.sh)"
 ```
 
 Das Script:

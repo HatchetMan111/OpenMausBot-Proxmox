@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  🐭 Proxmox OpenMausBot – One-Click Installer
-#  https://github.com/HatchetMan111/proxmox-openmausbot
+#  https://github.com/HatchetMan111/OpenMausBot-Proxmox
 #
 #  Installiert OpenMausBot (https://github.com/milind-soni/OpenMausBot) als
 #  unprivilegierten LXC-Container mit systemd-Service + Caddy-Reverse-Proxy.
 #
 #  Installation (auf Proxmox VE als root):
-#    bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/proxmox-openmausbot/main/install/openmausbot.sh)"
+#    bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/OpenMausBot-Proxmox/main/install/openmausbot.sh)"
 #
 #  Mit Optionen:
 #    .../install/openmausbot.sh --id 220 --memory 4096 --ip 192.168.1.50/24
@@ -180,7 +180,7 @@ usage() {
    Installiert milind-soni/OpenMausBot (Self-hosted AI-Agent-Chat) als LXC.
 
 Usage:
-  bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/proxmox-openmausbot/main/install/openmausbot.sh)" [OPTIONS]
+  bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/OpenMausBot-Proxmox/main/install/openmausbot.sh)" [OPTIONS]
 
 Options:
   --id NUM            Container-ID (Default: automatisch nächste freie ab 200)
@@ -212,7 +212,7 @@ Ports im Container:  8080 = Web-UI (Caddy, extern) · 8799 = Server (nur loopbac
 
 Examples:
   # Standard-Installation (nächste freie ID ab 200):
-  bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/proxmox-openmausbot/main/install/openmausbot.sh)"
+  bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/OpenMausBot-Proxmox/main/install/openmausbot.sh)"
 
   # Mit eigener ID, statischer IP und anderem Web-Port:
   ... --id 220 --ip 192.168.1.51/24 --port 8081
@@ -756,7 +756,7 @@ main() {
 
     echo ""
     echo -e "  ${BOLD}🐭  Proxmox OpenMausBot – Installer${NC}"
-    echo -e "  ${CYAN}https://github.com/HatchetMan111/proxmox-openmausbot${NC}"
+    echo -e "  ${CYAN}https://github.com/HatchetMan111/OpenMausBot-Proxmox${NC}"
     echo -e "  ${CYAN}App: https://github.com/milind-soni/OpenMausBot (v${OMB_VERSION}, Apache-2.0)${NC}"
     echo -e "  ${CYAN}Log: $LOG_FILE${NC}"
     echo ""
