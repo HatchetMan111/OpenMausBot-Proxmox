@@ -265,15 +265,43 @@ confirm() {
     [[ "$reply" =~ ^[Yy]$ ]]
 }
 
-# Container-IP ermitteln (dhcp → aus Container lesen, sonst statischer Wert)
+# Container-IP ermitteln (dhcp → aus Container lesen, sonst statischer Wert).
+# Fehler (z. B. gestoppter CT) → leerer String statt Abbruch – pct exec | awk
+# stirbt sonst unter pipefail und die ERR-Kette zeigt irreführend awk als Täter.
 get_ct_ip() {
     local ct_id="$1"
     if [[ "$CT_IP" != "dhcp" ]]; then
         echo "${CT_IP%%/*}"
         return 0
     fi
-    pct exec "$ct_id" -- hostname -I 2>/dev/null | awk '{print $1}'
+    pct exec "$ct_id" -- hostname -I 2>/dev/null | awk '{print $1}' || true
     return 0
+}
+
+# Stellt sicher, dass der Container läuft (startet ihn notfalls + wartet aufs Netz).
+# Ohne das scheitern pct push/exec im Update-Pfad kryptisch (pct exec → Exit 255).
+ensure_ct_running() {
+    local ct_id="$1"
+    local state
+    state=$(pct status "$ct_id" 2>/dev/null || echo "unknown")
+    if [[ "$state" == *"running"* ]]; then
+        return 0
+    fi
+    warn "Container $ct_id läuft nicht (Status: ${state}) – starte ihn..."
+    if ! pct start "$ct_id" 2>&1 | tail -2; then
+        die "Container $ct_id konnte nicht gestartet werden.\n  Manuell prüfen: pct start $ct_id && pct status $ct_id"
+    fi
+    info "Warte auf Netzwerk des Containers..."
+    local i ip=""
+    for i in $(seq 1 60); do
+        ip=$(pct exec "$ct_id" -- hostname -I 2>/dev/null | tr -d ' \n' || true)
+        if [[ -n "$ip" ]]; then
+            ok "Container läuft (IP: ${ip%% *})"
+            return 0
+        fi
+        sleep 1
+    done
+    die "Container $ct_id hat nach 60 s keine IP (Bridge/Netz prüfen: pct exec $ct_id -- ip a)"
 }
 
 # ── Voraussetzungen prüfen ─────────────────────────────────────────────────
@@ -419,9 +447,10 @@ do_pair() {
     local ct_id="$1"
     CT_ID="$ct_id"   # für die Fehlerkette (on_error) setzen
     header "🔑 Pairing-Code für $CT_HOSTNAME (Container $ct_id)"
+    ensure_ct_running "$ct_id"
 
     if ! pct exec "$ct_id" -- systemctl is-active openmausbot &>/dev/null; then
-        die "Service 'openmausbot' läuft nicht.\n  Erst starten: pct start $ct_id\n  Logs: pct exec $ct_id -- journalctl -u openmausbot -e"
+        die "Service 'openmausbot' läuft nicht (Container läuft, Service down).\n  Logs: pct exec $ct_id -- journalctl -u openmausbot -e\n  Reparatur: dieses Script mit --update"
     fi
 
     info "Erzeuge Pairing-Code (einmalig nutzbar, 24 h gültig)..."
@@ -748,6 +777,7 @@ do_update() {
     local ct_id="$1"
     CT_ID="$ct_id"   # für die Fehlerkette (on_error) setzen
     header "Aktualisiere OpenMausBot in Container $ct_id"
+    ensure_ct_running "$ct_id"
 
     if ! pct exec "$ct_id" -- systemctl is-active openmausbot &>/dev/null; then
         warn "Service läuft aktuell nicht – Update wird ihn starten."
